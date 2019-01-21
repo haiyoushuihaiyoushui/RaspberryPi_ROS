@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+	<title>ROS Robot Client</title>
+	<style type="text/css">
+		html, body 
+		{
+			background-color: #FFF;
+			text-align: center;
+		}
+		
+		.wrap{
+			width:800px;
+			height:300px;
+			margin-left:auto;
+			margin-right:auto;
+			position:relative;
+		}
+		
+		form.move{
+			display:block;
+			width:400px;
+			height:300px;
+			text-align:center;
+			position:relative;
+			float:left;
+		}
+		
+		form.ptz{
+			display:block;
+			width:400px;
+			height:300px;
+			text-align:center;
+			position:relative;
+			float:right;
+		}
+	</style>
+
+	<script type="text/javascript" src="./plugs/eventemitter2.min.js"></script>
+	<script type="text/javascript" src="./plugs/roslib.min.js"></script>
+	
+	<script type="text/javascript">
+	var ros = new ROSLIB.Ros
+	({
+		url : 'ws://192.168.12.1:9090'
+	});
+
+	ros.on('connection', function() 
+	{
+		console.log('Connected to websocket server.');
+	});
+
+	ros.on('error', function(error) 
+	{
+		console.log('Error connecting to websocket server: ', error);
+	});
+
+	ros.on('close', function() 
+	{
+		console.log('Connection to websocket server closed.');
+	});
+    
+	var speed_tmp = 2;
+	var direction_tmp = 0;
+	var ptz_tmp = 0;
+    	//Publishing a Topic
+	var cmdVel = new ROSLIB.Topic
+	({
+		ros : ros,
+		name : '/cmd_vel',
+		messageType : 'ros_robot/Active'
+	});
+	
+	function set_direction(direction, ptz, speed)
+	{
+		direction_tmp = direction;
+		ptz_tmp = ptz;
+		var driver = new ROSLIB.Message
+		({
+			direction : direction,
+			speed : speed,
+			ptz : ptz
+		});
+		cmdVel.publish(driver);
+	}
+
+	function set_speed(speed)
+	{
+		speed_tmp = speed;
+        	set_direction(direction_tmp, ptz_tmp, speed_tmp);
+	}
+
+	function printSpace(num)
+	{
+		for (var i=0; i<num; i++)
+		{
+			document.write("&nbsp;");
+		}
+	}
+		
+	//Subscribing to a Topic
+	var listener = new ROSLIB.Topic
+	({
+		ros : ros,
+		name : '/record',
+		messageType : 'std_msgs/String'
+	});
+
+	listener.subscribe(function(record){
+		var rec = document.getElementById("record");
+		rec.value = record.data;
+	});
+    
+    var listener = new ROSLIB.Topic
+    ({
+        ros : ros,
+        name : '/listener',
+        messageType : 'std_msgs/String'
+    });
+    listener.subscribe(function(message){
+        var tmp = message.data.toString().split(" ");
+        var mes = document.getElementById("message");
+        mes.value = tmp[0] + "cm";
+
+        var sss = document.getElementById("speed");
+	sss.value = tmp[1] + "m/s";        
+    });
+    </script>
+	<script>
+            window.onload = function()
+            {
+            	document.onkeyup = function(event)
+            	{
+            	    var e = event || window.event || arguments.callee.caller.arguments[0];
+                    if (e)
+                    {
+                        set_direction(0, 0, 0);
+                    }
+            	}
+            	
+                document.onkeydown = function(event)
+                {
+                    var e = event || window.event || arguments.callee.caller.arguments[0];
+                    if (e)
+                    {
+                        console.log("%d",e.keyCode);
+                        switch (e.keyCode)
+                        {
+                            case 38 :
+                                set_direction(0, 1, speed_tmp);
+                                break;
+                            case 87 :
+                                set_direction(1, 0, speed_tmp);//forward
+                                break;
+                            case 39 :
+                                set_direction(0, 2, speed_tmp);
+                                break;
+                            case 68 :
+                            	set_direction(2, 0, speed_tmp);//right
+                                break;
+                            case 40 :
+                                set_direction(0, 3, speed_tmp);
+                                break;
+                            case 83 :
+                            	set_direction(3, 0, speed_tmp);//backward
+                                break;
+                            case 37 :
+                                set_direction(0, 4, speed_tmp);
+                                break;
+                            case 65 :
+                            	set_direction(4, 0, speed_tmp);//left
+                                break;
+                                
+                            case 49 :
+                            case 97 :
+                            	set_speed(1);
+                                break;
+                            case 50 :
+                            case 98 :
+                            	set_speed(2);
+                                break;
+                            case 51 :
+                            case 99 :
+                            	set_speed(3);
+                                break;
+                                
+                            case 32 :
+                            case 48 :
+                            case 96 :
+                            	set_direction(0, 0, 0);
+                                break;
+                            default :
+                            	break;
+                        }
+                    }
+                }
+            }
+    </script>
+    <script>   
+        function getTime() 
+	    {
+    		document.getElementById("map").src = "./getMap/hello.jpg?" + Math.random();
+	    }
+        setInterval("getTime()", 2000);
+    </script>
+   
+</head>
+
+<body>
+	<div>
+	<div style="display:inline">
+		<img id="map" src="./getMap/hello.jpg"  height="408" width="408">
+		<a href="./getMap/hello.jpg" download="map.jpg">下载地图</a>
+	</div>
+	
+	<div style="display:inline">
+		<canvas id="video-canvas"></canvas>
+		<script type="text/javascript" src="./plugs/jsmpeg/jsmpeg.min.js"></script>
+		<script type="text/javascript">
+			var canvas = document.getElementById('video-canvas');
+			var url = 'ws://'+document.location.hostname+':8082/';
+			var player = new JSMpeg.Player(url, {canvas: canvas});
+		</script>
+	</div>
+	</div>
+	
+	<form action="cgi-bin/sql.py" method="get">
+        距离障碍物：<input align="left" type="text" id="message" value="未启动" style="height:32px;width:300px;font-size:32px" onfocus=this.blur()><br>
+        机器人时速：<input align="left" type="text" id="speed" value="未启动" style="height:32px;width:300px;font-size:32px" onfocus=this.blur()><br>
+        当前温湿度：<input align="left" type="text" id="record" value="未启动" style="height:32px;width:300px;font-size:32px" onfocus=this.blur()><br>
+        <input type="submit"  style="height:30px" value="查询历史记录"/>
+    	</form>
+
+    <div class="wrap">
+    <form class="move">
+    		运动控制:<br><br>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(1, 0, speed_tmp)" onmouseup="set_direction(0,0,0)">前进</button><br>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(4, 0, speed_tmp)" onmouseup="set_direction(0,0,0)">左转</button>
+	<script>
+		printSpace(18)
+	</script>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(2, 0, speed_tmp)" onmouseup="set_direction(0,0,0)">右转</button><br>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(3, 0, speed_tmp)" onmouseup="set_direction(0,0,0)">后退</button>	
+
+    <br><br>
+
+		<button type="button" style="height:30px;width:80px;" onclick="set_speed(1)">一档</button>
+    <script>
+        printSpace(8)
+    </script>
+		<button type="button" style="height:30px;width:80px;" onclick="set_speed(2)">二档</button>
+	<script>
+        printSpace(8)
+    </script>
+        <button type="button" style="height:30px;width:80px;" onclick="set_speed(3)">三档</button>
+
+    </form>
+    
+    <form class="ptz">
+    		舵机控制:<br><br>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(0, 1, speed_tmp)" onmouseup="set_direction(0,0)">上</button><br>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(0, 4, speed_tmp)" onmouseup="set_direction(0,0)">左</button>
+	<script>
+		printSpace(18)
+	</script>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(0, 2, speed_tmp)" onmouseup="set_direction(0,0)">右</button><br>
+		<button type="button" style="height:30px;width:80px;" onmousedown="set_direction(0, 3, speed_tmp)" onmouseup="set_direction(0,0)">下</button>	
+    </form>
+    </div>
+	
+</body>
+</html>
+
+ffmpeg \
+	-f v4l2 \
+		-framerate 25 -video_size 640x480 -i /dev/video0 \
+	-f alsa \
+		-ar 44100 -c 2 -i hw:0 \
+	-f mpegts \
+		-codec:v mpeg1video -s 640x480 -b:v 1000k -bf 0 \
+		-codec:a mp2 -b:a 128k \
+		-muxdelay 0.001 \
+	http://192.168.12.1:8081/supersecret
